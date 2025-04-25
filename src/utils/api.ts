@@ -16,7 +16,7 @@ import {
   TotalReservationsResponse,
   TotalNewGuestsResponse,
   TotalReservedRoomsResponse,
-  HistoricalMetricsResponse,    
+  HistoricalMetricsResponse,
 } from "../types";
 
 const api = axios.create({
@@ -103,6 +103,33 @@ export const createReservation = async (data: {
     supportContact?: string;
   }[];
 }): Promise<Reservation> => {
+  // Validate room capacity and number of guests
+  const room = await api.get(`/rooms/${data.roomId}`);
+  if (!room) {
+    throw new Error("Room not found");
+  }
+  if (data.numGuests > room.data.capacity) {
+    throw new Error("Number of guests exceeds room capacity");
+  }
+  if (data.guests.length !== data.numGuests) {
+    throw new Error("Number of guests provided does not match numGuests");
+  }
+
+  // Validate check-in and check-out dates
+  if (new Date(data.checkOut) <= new Date(data.checkIn)) {
+    throw new Error("Check-out must be after check-in");
+  }
+
+  // Ensure no duplicate CPFs in guests
+  const cpfs = new Set();
+  for (const guest of data.guests) {
+    if (guest.cpf && cpfs.has(guest.cpf)) {
+      throw new Error(`Duplicate CPF: ${guest.cpf}`);
+    }
+    cpfs.add(guest.cpf);
+  }
+
+  // Create reservation
   const response = await api.post("/reservations", data);
   return response.data;
 };
@@ -117,26 +144,63 @@ export const getReservations = async (params?: {
   return response.data;
 };
 
-export const updateReservation = async (id: number, data: {
-  roomId?: number;
-  numGuests?: number;
-  checkIn?: string;
-  checkOut?: string;
-  status?: 'CONFIRMED' | 'CANCELLED' | 'CHECKED_IN' | 'CHECKED_OUT';
-  guests?: {
-    guestId?: number;
-    name?: string;
-    cpf?: string;
-    contactPhone?: string;
-    supportContact?: string;
-  }[];
-}): Promise<Reservation> => {
+export const updateReservation = async (
+  id: number,
+  data: {
+    roomId?: number;
+    numGuests?: number;
+    checkIn?: string;
+    checkOut?: string;
+    status?: "CONFIRMED" | "CANCELLED" | "CHECKED_IN" | "CHECKED_OUT";
+    guests?: {
+      guestId?: number;
+      name?: string;
+      cpf?: string;
+      contactPhone?: string;
+      supportContact?: string;
+    }[];
+  }
+): Promise<Reservation> => {
+  // Validate room capacity and number of guests
+  if (data.roomId) {
+    const room = await api.get(`/rooms/${data.roomId}`);
+    if (!room) {
+      throw new Error("Room not found");
+    }
+    if (data.numGuests && data.numGuests > room.data.capacity) {
+      throw new Error("Number of guests exceeds room capacity");
+    }
+  }
+
+  // Validate check-in and check-out dates
+  if (data.checkIn && data.checkOut) {
+    if (new Date(data.checkOut) <= new Date(data.checkIn)) {
+      throw new Error("Check-out must be after check-in");
+    }
+  }
+
+  // Ensure no duplicate CPFs in guests
+  if (data.guests) {
+    const cpfs = new Set();
+    for (const guest of data.guests) {
+      if (guest.cpf && cpfs.has(guest.cpf)) {
+        throw new Error(`Duplicate CPF: ${guest.cpf}`);
+      }
+      cpfs.add(guest.cpf);
+    }
+  }
+
+  // Update reservation
   const response = await api.put(`/reservations/${id}`, data);
   return response.data;
 };
 
-export const getReservationsByStatus = async (status: string): Promise<Reservation[]> => {
-  const response = await api.get("/reservations/status", { params: { status } });
+export const getReservationsByStatus = async (
+  status: string
+): Promise<Reservation[]> => {
+  const response = await api.get("/reservations/status", {
+    params: { status },
+  });
   return response.data;
 };
 
@@ -198,12 +262,12 @@ export const getAvailableRooms = async (params: {
   checkOut: Date | null;
 }): Promise<Room[]> => {
   if (!params.checkIn || !params.checkOut) return [];
-  
+
   const response = await api.get("/rooms/available", {
     params: {
       checkIn: params.checkIn.toISOString(),
-      checkOut: params.checkOut.toISOString()
-    }
+      checkOut: params.checkOut.toISOString(),
+    },
   });
   return response.data;
 };
@@ -213,7 +277,7 @@ export const createRoom = async (data: {
   number: string;
   description: string;
   capacity: number;
-  status?: 'AVAILABLE' | 'CLEANING' | 'REPAIRS_NEEDED';
+  status?: "AVAILABLE" | "CLEANING" | "REPAIRS_NEEDED";
   notes?: string;
 }): Promise<Room> => {
   const response = await api.post("/rooms", data);
@@ -226,7 +290,7 @@ export const updateRoom = async (data: {
   number?: string;
   description?: string;
   capacity?: number;
-  status?: 'AVAILABLE' | 'CLEANING' | 'REPAIRS_NEEDED';
+  status?: "AVAILABLE" | "CLEANING" | "REPAIRS_NEEDED";
   notes?: string;
 }): Promise<Room> => {
   const { id, ...roomData } = data;
@@ -238,38 +302,63 @@ export const deleteRoom = async (id: number): Promise<void> => {
   await api.delete(`/rooms/${id}`);
 };
 
-export const getTotalGuests = async (year: number, month: number): Promise<TotalGuestsResponse> => {
-    const response = await axios.get(`/api/metrics/total-guests`, { params: { year, month } });
-    return response.data;
-  };
-  
-  export const getTotalReservations = async (year: number, month: number): Promise<TotalReservationsResponse> => {
-    const response = await axios.get(`/api/metrics/total-reservations`, { params: { year, month } });
-    return response.data;
-  };
-  
-  export const getTotalNewGuests = async (year: number, month: number): Promise<TotalNewGuestsResponse> => {
-    const response = await axios.get(`/api/metrics/total-new-guests`, { params: { year, month } });
-    return response.data;
-  };
-  
-  export const getTotalReservedRooms = async (year: number, month: number): Promise<TotalReservedRoomsResponse> => {
-    const response = await axios.get(`/api/metrics/total-reserved-rooms`, { params: { year, month } });
-    return response.data;
-  };
-  
-  export const getHistoricalMetrics = async (
-    metric: string,
-    year: number,
-    quarter?: number,
-    month?: number,
-    granularity: 'daily' | 'monthly' = 'monthly'
-  ): Promise<HistoricalMetricsResponse> => {
-    const response = await axios.get(`/api/metrics/historical`, {
-      params: { metric, year, quarter, month, granularity },
+
+export const getTotalGuests = async (
+  year: number,
+  month: number
+): Promise<TotalGuestsResponse> => {
+  const response = await api.get(`/metrics/total-guests`, {
+    params: { year, month },
+  });
+  return response.data;
+};
+
+export const getTotalReservations = async (
+  year: number,
+  month: number
+): Promise<TotalReservationsResponse> => {
+  const response = await api.get(`/metrics/total-reservations`, {
+    params: { year, month },
+  });
+  return response.data;
+};
+
+export const getTotalNewGuests = async (
+  year: number,
+  month: number
+): Promise<TotalNewGuestsResponse> => {
+  try {
+    const response = await api.get(`/metrics/total-new-guests`, {
+      params: { year, month },
     });
     return response.data;
-  };
+  } catch (error) {
+    console.error('Error fetching total new guests:', error);
+    throw error;
+  }
+};
 
+export const getTotalReservedRooms = async (
+  year: number,
+  month: number
+): Promise<TotalReservedRoomsResponse> => {
+  const response = await api.get(`/metrics/total-reserved-rooms`, {
+    params: { year, month },
+  });
+  return response.data;
+};
+
+export const getHistoricalMetrics = async (
+  metric: string,
+  year: number,
+  quarter?: number,
+  month?: number,
+  granularity: "daily" | "monthly" = "monthly"
+): Promise<HistoricalMetricsResponse> => {
+  const response = await api.get(`/metrics/historical`, {
+    params: { metric, year, quarter, month, granularity },
+  });
+  return response.data;
+};
 
 export default api;
