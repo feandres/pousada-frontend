@@ -1,0 +1,35 @@
+☐ Página Users (crud completo)
+    ☐ Utilizar zod nos formulários
+
+☐ Página Quartos (crud completo)
+    ☐ Criar quarto
+    ☐ Editar quarto
+    ☐ Eliminar quarto
+
+    ☐ Utilizar zod nos formulários
+
+☐ Página Reservas (crud completo)
+    ☐ Nova Reserva 
+        -> Deixa de ser modal e vira uma página completa, com primeiro hóspede depois outros membros, também primeiro recebe quantidade de hóspedes para listar quartos disponíveis
+    ☐ Indicadores de Reservas feitas
+    ☐ Filtrar por data, quarto, hóspede
+    ☐ Criar reserva
+    ☐ Editar reserva
+    ☐ Eliminar reserva
+
+    ☐ Utilizar zod nos formulários
+
+
+☐ Página Hóspedes (crud completo)
+    ☐ Listar hóspedes
+    ☐ Criar hóspede
+    ☐ Editar hóspede
+    ☐ Eliminar hóspede
+
+    ☐ Utilizar zod nos formulários
+
+
+
+
+
+
